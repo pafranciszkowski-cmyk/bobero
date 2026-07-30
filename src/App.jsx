@@ -439,13 +439,6 @@ function AuthModal({ users, onLogin, onRegister, onClose, openLegal }) {
   const doLogin = async () => {
          setBusy(true); setErr(""); setNotice("");
          const email = f.email.trim().toLowerCase();
-         // podgląd / dostęp administratora — działa lokalnie, bez Supabase (do usunięcia przed pełnym uruchomieniem produkcyjnym)
-         if (email === "@" && f.pass === "@") {
-                  const u = users.find((x) => x.email === "@");
-                  setBusy(false);
-                  if (u) onLogin(u); else setErr("Konto administratora nie zostało znalezione.");
-                  return;
-         }
          const { data, error } = await supabase.auth.signInWithPassword({ email, password: f.pass });
          setBusy(false);
          if (error) {
@@ -1538,7 +1531,7 @@ function AdminPanel({ networks, setNetworks, products, setProducts, clicks, user
             <h2>Ustawienia</h2>
             <div className="net-card">
               <b>Dostęp do panelu</b>
-              <p className="muted">Panel administratora jest dostępny wyłącznie z konta administratora (pierwsze zarejestrowane konto w serwisie). Wejście: awatar → „Panel administratora". Logujesz się swoim hasłem konta.</p>
+              <p className="muted">Panel administratora jest dostępny wyłącznie z konta administratora (pa.franciszkowski@gmail.com w serwisie). Wejście: awatar → „Panel administratora". Logujesz się swoim hasłem konta.</p>
             </div>
             <div className="net-card">
               <b>Dane cen</b>
@@ -2479,14 +2472,6 @@ export default function App() {
       if (p) setProductsState(p);
       if (c) setClicksState(c);
       let loadedUsers = (us || []).map((u) => ({ notifyEmail: true, notifySms: false, phone: "", ...u, favs: u.favs || [], list: u.list || [] }));
-      // wbudowane konto administratora (podgląd): e-mail "@", hasło "@" — przed startem produkcyjnym do zmiany!
-      if (!loadedUsers.some((u) => u.email === "@")) {
-        loadedUsers = [{
-          id: "u-admin", name: "Administrator", email: "@", passHash: await hashPass("@"),
-          type: "prywatne", company: "", nip: "", marketing: false, created: 0, isAdmin: true,
-          notifyEmail: true, notifySms: false, phone: "", favs: [], list: [],
-        }, ...loadedUsers];
-      }
       setUsersState(loadedUsers);
       store.set("bobero:users", loadedUsers);
       if (sess) setCurrentUserIdState(sess);
@@ -2520,8 +2505,9 @@ export default function App() {
   const setSession = (id) => { setCurrentUserIdState(id); store.set("bobero:session", id); };
 
   const currentUser = users.find((u) => u.id === currentUserId) || null;
-  const adminId = (users.find((u) => u.isAdmin) || [...users].sort((a, b) => a.created - b.created)[0])?.id;
-  const isAdminUser = !!currentUser && currentUser.id === adminId;
+// panel administratora dostepny wylacznie dla wskazanego konta zalogowanego przez Supabase
+       const ADMIN_EMAIL = "pa.franciszkowski@gmail.com";
+       const isAdminUser = !!currentUser && (currentUser.email || "").toLowerCase() === ADMIN_EMAIL;
   const updateUser = (nu) => setUsers(users.map((u) => (u.id === nu.id ? nu : u)));
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2600); };
 
@@ -2752,7 +2738,7 @@ export default function App() {
         <div className="app"><style>{CSS}</style>
           <div className="admin-login"><div className="admin-login-box">
             <h2>Panel administratora</h2>
-            <p className="muted">Dostęp ma wyłącznie konto administratora (pierwsze zarejestrowane konto). {currentUser ? "To konto nie ma uprawnień administratora." : "Zaloguj się na konto administratora."}</p>
+            <p className="muted">Dostęp ma wyłącznie konto administratora (pa.franciszkowski@gmail.com). {currentUser ? "To konto nie ma uprawnień administratora." : "Zaloguj się na konto administratora."}</p>
             {!currentUser && <button className="cta" onClick={() => { setView("shop"); setAuthOpen(true); }}>Zaloguj się</button>}
             <button className="linkbtn" onClick={() => setView("home")}>← Wróć do strony głównej</button>
           </div></div>

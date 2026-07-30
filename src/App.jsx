@@ -1,4 +1,11 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+/* ---------------- Supabase (prawdziwe logowanie/rejestracja) ---------------- */
+const supabase = createClient(
+     import.meta.env.VITE_SUPABASE_URL,
+     import.meta.env.VITE_SUPABASE_ANON_KEY
+   );
 
 /* ==================================================================
    BOBERO v2 — porównywarka materiałów budowlanych (afiliacja)
@@ -412,8 +419,9 @@ function AuthModal({ users, onLogin, onRegister, onClose, openLegal }) {
   const [type, setType] = useState("prywatne");
   const [f, setF] = useState({ name: "", email: "", pass: "", pass2: "", nip: "", company: "", consent: false, marketing: false });
   const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [socialInfo, setSocialInfo] = useState("");
+     const [notice, setNotice] = useState("");
+     const [busy, setBusy] = useState(false);
+     const [socialInfo, setSocialInfo] = useState("");
   const set = (k, v) => { setF({ ...f, [k]: v }); setErr(""); };
   const social = (provider) => setSocialInfo(`Logowanie przez ${provider} będzie aktywne po uruchomieniu serwisu na własnej domenie — wymaga rejestracji aplikacji u dostawcy (klucze OAuth) i obsługi po stronie serwera. W wersji podglądowej użyj konta z hasłem.`);
   const SocialButtons = () => (
@@ -429,40 +437,75 @@ function AuthModal({ users, onLogin, onRegister, onClose, openLegal }) {
   );
 
   const doLogin = async () => {
-    setBusy(true);
-    const u = users.find((x) => x.email.toLowerCase() === f.email.trim().toLowerCase());
-    if (!u) { setErr("Nie znaleziono konta z tym adresem e-mail."); setBusy(false); return; }
-    const h = await hashPass(f.pass);
-    if (h !== u.passHash) { setErr("Nieprawidłowe hasło."); setBusy(false); return; }
-    setBusy(false);
-    onLogin(u);
+         setBusy(true); setErr(""); setNotice("");
+         const email = f.email.trim().toLowerCase();
+         // podgląd / dostęp administratora — działa lokalnie, bez Supabase (do usunięcia przed pełnym uruchomieniem produkcyjnym)
+         if (email === "@" && f.pass === "@") {
+                  const u = users.find((x) => x.email === "@");
+                  setBusy(false);
+                  if (u) onLogin(u); else setErr("Konto administratora nie zostało znalezione.");
+                  return;
+         }
+         const { data, error } = await supabase.auth.signInWithPassword({ email, password: f.pass });
+         setBusy(false);
+         if (error) {
+                  setErr(error.message === "Invalid login credentials" ? "Nieprawidłowy e-mail lub hasło." : error.message);
+                  return;
+         }
+         const su = data.user;
+         const meta = su.user_metadata || {};
+         const existing = users.find((x) => x.email.toLowerCase() === email);
+         const u = {
+                  ...(existing || { favs: [], list: [], notifyEmail: true, notifySms: false, phone: "" }),
+                  id: su.id,
+                  name: meta.name || existing?.name || email.split("@")[0],
+                  email,
+                  type: meta.type || existing?.type || "prywatne",
+                  company: meta.company || existing?.company || "",
+                  nip: meta.nip || existing?.nip || "",
+                  marketing: !!meta.marketing,
+                  created: existing?.created || Date.parse(su.created_at) || Date.now(),
+                  isAdmin: existing?.isAdmin || users.length === 0,
+         };
+         onLogin(u);
   };
 
-  const doRegister = async () => {
-    setBusy(true);
-    const email = f.email.trim().toLowerCase();
-    if (!f.name.trim()) { setErr("Podaj imię i nazwisko."); setBusy(false); return; }
-    if (!validEmail(email)) { setErr("Nieprawidłowy adres e-mail."); setBusy(false); return; }
-    if (users.some((x) => x.email.toLowerCase() === email)) { setErr("Konto z tym adresem już istnieje."); setBusy(false); return; }
-    if (f.pass.length < 8) { setErr("Hasło musi mieć co najmniej 8 znaków."); setBusy(false); return; }
-    if (f.pass !== f.pass2) { setErr("Hasła nie są identyczne."); setBusy(false); return; }
-    if (type === "firma") {
-      if (!f.company.trim()) { setErr("Podaj nazwę firmy."); setBusy(false); return; }
-      if (!validNip(f.nip)) { setErr("Nieprawidłowy NIP (sprawdź 10 cyfr i sumę kontrolną)."); setBusy(false); return; }
-    }
-    if (!f.consent) { setErr("Akceptacja Regulaminu jest wymagana."); setBusy(false); return; }
-    const u = {
-      id: "u-" + Date.now(),
-      name: f.name.trim(), email, passHash: await hashPass(f.pass),
-      type, company: type === "firma" ? f.company.trim() : "", nip: type === "firma" ? f.nip.replace(/[\s-]/g, "") : "",
-      marketing: f.marketing, created: Date.now(),
-      isAdmin: users.length === 0, // pierwszy zarejestrowany użytkownik zostaje administratorem
-      notifyEmail: true, notifySms: false, phone: "",
-      favs: [], list: [],
-    };
-    setBusy(false);
-    onRegister(u);
-  };
+     const doRegister = async () => {
+            setBusy(true); setErr(""); setNotice("");
+            const email = f.email.trim().toLowerCase();
+            if (!f.name.trim()) { setErr("Podaj imię i nazwisko."); setBusy(false); return; }
+            if (!validEmail(email)) { setErr("Nieprawidłowy adres e-mail."); setBusy(false); return; }
+            if (f.pass.length < 8) { setErr("Hasło musi mieć co najmniej 8 znaków."); setBusy(false); return; }
+            if (f.pass !== f.pass2) { setErr("Hasła nie są identyczne."); setBusy(false); return; }
+            if (type === "firma") {
+                     if (!f.company.trim()) { setErr("Podaj nazwę firmy."); setBusy(false); return; }
+                     if (!validNip(f.nip)) { setErr("Nieprawidłowy NIP (sprawdź 10 cyfr i sumę kontrolną)."); setBusy(false); return; }
+            }
+            if (!f.consent) { setErr("Akceptacja Regulaminu jest wymagana."); setBusy(false); return; }
+            const { data, error } = await supabase.auth.signUp({
+                     email, password: f.pass,
+                     options: { data: { name: f.name.trim(), type, company: type === "firma" ? f.company.trim() : "", nip: type === "firma" ? f.nip.replace(/[\s-]/g, "") : "", marketing: f.marketing } },
+            });
+            setBusy(false);
+            if (error) {
+                     setErr(error.message === "User already registered" ? "Konto z tym adresem już istnieje." : error.message);
+                     return;
+            }
+            const su = data.user;
+            const u = {
+                     id: su.id, name: f.name.trim(), email,
+                     type, company: type === "firma" ? f.company.trim() : "", nip: type === "firma" ? f.nip.replace(/[\s-]/g, "") : "",
+                     marketing: f.marketing, created: Date.now(),
+                     isAdmin: users.length === 0, // pierwszy zarejestrowany użytkownik zostaje administratorem
+                     notifyEmail: true, notifySms: false, phone: "",
+                     favs: [], list: [],
+            };
+            if (!data.session) {
+                     setNotice("Konto założone! Sprawdź skrzynkę e-mail i kliknij link potwierdzający, aby się zalogować.");
+                     return;
+            }
+            onRegister(u);
+     };
 
   return (
     <div className="overlay" onClick={onClose}>
@@ -501,12 +544,12 @@ function AuthModal({ users, onLogin, onRegister, onClose, openLegal }) {
             <label>Powtórz hasło<PassInput value={f.pass2} onChange={(e) => set("pass2", e.target.value)} /></label>
             <label className="check"><input type="checkbox" checked={f.consent} onChange={(e) => set("consent", e.target.checked)} /><span>Akceptuję <button type="button" className="inline-link" onClick={() => openLegal("regulamin")}>Regulamin</button> i <button type="button" className="inline-link" onClick={() => openLegal("prywatnosc")}>Politykę prywatności</button> (wymagane)</span></label>
             <label className="check"><input type="checkbox" checked={f.marketing} onChange={(e) => set("marketing", e.target.checked)} /><span>Chcę otrzymywać informacje o promocjach (opcjonalne)</span></label>
-            {err && <div className="err">{err}</div>}
-            <button className="cta" disabled={busy} onClick={doRegister}>Załóż konto</button>
+             {notice && <div className="warn">{notice}</div>}
+             <button className="cta" disabled={busy} onClick={doRegister}>Załóż konto</button>
             <SocialButtons />
           </div>
         )}
-        <p className="disclosure">Dane konta są zapisywane wyłącznie w tej aplikacji. Hasło przechowujemy w postaci skrótu.</p>
+        <p className="disclosure">Logowanie i hasło obsługuje bezpiecznie Supabase (nigdy nie widzimy Twojego hasła w postaci jawnej). Lista zakupowa i ulubione są na razie zapisywane lokalnie w tej przeglądarce.</p>
         <button className="sheet-close-bottom" onClick={onClose}>Zamknij</button>
       </div>
     </div>
@@ -2482,13 +2525,24 @@ export default function App() {
   const updateUser = (nu) => setUsers(users.map((u) => (u.id === nu.id ? nu : u)));
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 2600); };
 
-  const handleRegister = (u) => {
-    setUsers([...users, u]); setSession(u.id); setAuthOpen(false);
-    showToast(`Witaj, ${u.name.split(" ")[0]}! Konto założone.`);
-    if (guestList.length > 0) { const g = guestList; setGuestList([]); setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, list: g } : x)).concat(prev.some((x) => x.id === u.id) ? [] : [{ ...u, list: g }])); setProfileSection("lista"); }
-    else setProfileSection("menu");
-    setProfileOpen(true);
-  };
+  // po zalogowaniu/rejestracji przez Supabase: dopisz/zaktualizuj lokalny rekord użytkownika (lista i ulubione zostają lokalne)
+     const upsertLocalUser = (u) => {
+            const prior = users.find((x) => x.email.toLowerCase() === u.email.toLowerCase());
+            const merged = { ...prior, ...u };
+            const rest = users.filter((x) => x.id !== merged.id && x.email.toLowerCase() !== merged.email.toLowerCase());
+            setUsers([...rest, merged]);
+            return merged;
+     };
+
+     const handleRegister = (u) => {
+            const hadGuestList = guestList.length > 0;
+            const nu = upsertLocalUser(hadGuestList ? { ...u, list: guestList } : u);
+            if (hadGuestList) setGuestList([]);
+            setSession(nu.id); setAuthOpen(false);
+            showToast(`Witaj, ${nu.name.split(" ")[0]}! Konto założone.`);
+            setProfileSection(hadGuestList ? "lista" : "menu");
+            setProfileOpen(true);
+     };
   const mergeGuest = (u) => {
     if (guestList.length === 0) return u;
     const merged = [...(u.list || [])];
@@ -2503,12 +2557,20 @@ export default function App() {
     return nu;
   };
   const handleLogin = (u) => {
-    setSession(u.id); setAuthOpen(false);
-    if (guestList.length > 0) { mergeGuest(u); setProfileSection("lista"); }
-    else { showToast(`Witaj ponownie, ${u.name.split(" ")[0]}!`); setProfileSection("menu"); }
-    setProfileOpen(true);
+         setAuthOpen(false);
+         if (guestList.length > 0) {
+                  const nu = mergeGuest(u); // aktualizuje users[] i czyści listę gościa
+                  setSession(nu.id);
+                  setProfileSection("lista");
+         } else {
+                  const nu = upsertLocalUser(u);
+                  setSession(nu.id);
+                  showToast(`Witaj ponownie, ${nu.name.split(" ")[0]}!`);
+                  setProfileSection("menu");
+         }
+         setProfileOpen(true);
   };
-  const handleLogout = () => { setSession(null); setProfileOpen(false); };
+     const handleLogout = () => { supabase.auth.signOut(); setSession(null); setProfileOpen(false); };
   const handleDeleteAccount = () => {
     const id = currentUserId;
     setUsers(users.filter((u) => u.id !== id));

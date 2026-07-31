@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
+ę—import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 /* ---------------- Supabase (prawdziwe logowanie/rejestracja) ---------------- */
@@ -295,8 +295,8 @@ const LEGAL_REGULAMIN = `REGULAMIN SERWISU BOBERO
 
 §1. Postanowienia ogólne
 1. Niniejszy Regulamin określa zasady korzystania z serwisu internetowego BOBERO („Serwis"), będącego porównywarką cen materiałów budowlanych.
-2. Usługodawcą jest [imię i nazwisko / nazwa firmy, adres, NIP — do uzupełnienia po rejestracji działalności] („Usługodawca").
-3. Kontakt z Usługodawcą: [adres e-mail — do uzupełnienia].
+2. Usługodawcą jest Patryk Franciszkowski, ul. Hubala, Gorzów Wielkopolski (działalność nierejestrowana) („Usługodawca").
+3. Kontakt z Usługodawcą: kontakt@bobero.pl.
 
 §2. Charakter Serwisu
 1. Serwis prezentuje informacje o produktach i cenach pochodzące ze sklepów partnerskich (m.in. Castorama, Leroy Merlin, OBI) oraz umożliwia przejście do stron tych sklepów.
@@ -331,7 +331,7 @@ const LEGAL_REGULAMIN = `REGULAMIN SERWISU BOBERO
 const LEGAL_PRYWATNOSC = `POLITYKA PRYWATNOŚCI SERWISU BOBERO
 
 1. Administrator danych
-Administratorem danych osobowych jest [imię i nazwisko / nazwa firmy, adres — do uzupełnienia]. Kontakt: [e-mail].
+Administratorem danych osobowych jest Patryk Franciszkowski, ul. Hubala, Gorzów Wielkopolski. Kontakt: kontakt@bobero.pl.
 
 2. Jakie dane przetwarzamy i po co
 a) Dane konta (imię i nazwisko, adres e-mail, hasło w postaci skrótu, a dla kont firmowych: nazwa firmy i NIP) — w celu świadczenia usługi konta, na podstawie art. 6 ust. 1 lit. b RODO (umowa).
@@ -351,7 +351,7 @@ Sieci afiliacyjne (Tradedoubler, Admitad, Awin) — w zakresie technicznych iden
 Dane konta — do czasu usunięcia konta. Statystyka kliknięć — do 24 miesięcy. Dane rozliczeniowe — zgodnie z przepisami podatkowymi.
 
 6. Prawa użytkownika
-Masz prawo do: dostępu do danych, sprostowania, usunięcia, ograniczenia przetwarzania, przenoszenia, sprzeciwu oraz skargi do Prezesa UODO. Wnioski: [e-mail].
+Masz prawo do: dostępu do danych, sprostowania, usunięcia, ograniczenia przetwarzania, przenoszenia, sprzeciwu oraz skargi do Prezesa UODO. Wnioski: kontakt@bobero.pl.
 
 7. Dobrowolność
 Podanie danych jest dobrowolne, ale niezbędne do założenia konta.
